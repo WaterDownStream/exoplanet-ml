@@ -1,0 +1,300 @@
+# =====================================================================
+# exoplanet_ml master configuration (dataset schema 2.0.0)
+# Every tunable parameter lives here; no code edits required.
+# =====================================================================
+
+seed: 42
+log_level: INFO
+
+paths:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  cache_dir: data/cache
+  models_dir: data/models
+  reports_dir: data/reports
+  figures_dir: data/processed/figures
+  logs_dir: data/logs
+  catalogs_dir: data/catalogs
+  features_dir: data/processed/features
+  hdd_archive_dir: data/archive
+
+classes:
+  names:
+    - planet
+    - planet_candidate
+    - eclipsing_binary
+    - background_blend
+    - instrument_artefact
+    - variable_star
+    - quiet_star
+    - unknown
+  astro_names:
+    - planet
+    - planet_candidate
+    - eclipsing_binary
+    - background_blend
+    - instrument_artefact
+    - variable_star
+    - quiet_star
+    - unknown
+
+preprocessing:
+  sigma: 5.0
+  sigma_upper: 5.0
+  sigma_lower: null
+  sigma_iters: 5
+  remove_nans: true
+  normalize: true
+  robust_scale: true
+  quality_bitmask: default
+
+quality:
+  minimum_points: 300
+  max_nan_fraction: 0.5
+  max_outlier_fraction: 0.15
+  min_coverage: 0.5
+  max_quality_flag_fraction: 0.5
+  min_stationarity: 0.5
+  gap_tolerance: 5.0
+  noise_scale: 0.01
+  reject_threshold: 0.3
+  weights:
+    cadence: 0.15
+    missing: 0.20
+    noise: 0.25
+    gaps: 0.15
+    stability: 0.25
+
+detrending:
+  method: savgol
+  break_tolerance: 5.0
+  transit_mask_sigma: 3.0
+  niters: 3
+  moving_median:
+    window: 101
+    window_length_days: 1.0
+  savgol:
+    window_length: 101
+    window_length_days: 1.0
+    polyorder: 2
+  gp:
+    kernel: matern
+    length_scale: 1.0
+    alpha: 1.0e-3
+    max_fit_points: 750
+  pca:
+    n_components: 5
+
+bls:
+  algorithm: bls
+  period_min: 0.5
+  period_max: 20.0
+  n_periods: 10000
+  duration_min: 0.05
+  duration_max: 0.3
+  n_durations: 10
+  period_bins: 8
+  max_duration_fraction: 0.20
+  oversample: 10
+  minimum_transits: 2
+  min_points_per_transit: 2
+  min_snr: 6.0
+  min_sde: 5.0
+
+tls:
+  enabled: false
+
+mono_search:
+  min_depth: 0.0005
+  max_depth: 0.15
+  min_duration: 0.02
+  max_duration: 0.5
+  window_step: 0.005
+  snr_threshold: 6.0
+  morphology_threshold: 0.25
+  n_durations: 18
+  minimum_points: 50
+  min_points_in_event: 3
+  min_window_coverage: 0.6
+  max_candidates: 20
+
+phase_folding:
+  n_bins: 200
+
+features:
+  normalization: robust
+  use_masks: true
+  resample_length: 1024
+  weighting_enabled: false
+  selection:
+    enabled: true
+    variance_threshold: 1.0e-12
+    correlation_threshold: 0.995
+    minimum_features: 20
+
+dataset:
+  version: "2.0.0"
+  download_workers: 4
+  retry_count: 3
+  download_timeout: 120
+  label_aliases:
+    planets: planet
+    confirmed_planets: planet
+    planet_candidates: planet_candidate
+    candidates: planet_candidate
+    mono: planet_candidate
+    mono_transits: planet_candidate
+    eb: eclipsing_binary
+    eclipsing_binaries: eclipsing_binary
+    background_blend: background_blend
+    background_blends: background_blend
+    blends: background_blend
+    instrument_artefact: instrument_artefact
+    instrumental: instrument_artefact
+    false_positive: unknown
+    false_positives: unknown
+    nonplanets: unknown
+    random: unknown
+    random_stars: unknown
+    quiet_star: quiet_star
+    quiet_stars: quiet_star
+    variable_star: variable_star
+    variable_stars: variable_star
+  split_ratios:
+    train: 0.70
+    val: 0.15
+    test: 0.15
+  balance_targets:
+    confirmed_planet: 1000
+    false_positive: 1000
+    eclipsing_binary: 1000
+    quiet_star: 1000
+    mono_transit: 500
+    synthetic: 500
+  augmentation_probability: 0.2
+
+augmentation:
+  gaussian_noise_std: 0.0005
+  poisson: false
+  cadence_mask_fraction: 0.05
+  baseline_shift: 0.001
+  depth_variation: 0.1
+  duration_variation: 0.1
+  timing_jitter: 0.002
+  time_shift: 0.0
+  random_crop_fraction: 0.0
+  cadence_jitter_std: 0.0
+  flux_scale_std: 0.0
+
+training:
+  mode: multiclass
+  test_size: 0.15
+  val_size: 0.15
+  stratify: true
+  class_balancing: weighted_loss
+  max_class_weight: 10.0
+  mixed_precision: true
+  gradient_accumulation: 1
+  gradient_clip_norm: 1.0
+  optimizer: adamw
+  checkpoint_resume: true
+  max_vram_gb: 6.0
+  synthetic_samples: 2000
+  minimum_samples_per_class: 20
+  exclude_classes: [unknown]
+  loss: focal
+  focal_gamma: 2.0
+  label_smoothing: 0.02
+  data_loader_workers: 0
+  minimum_threshold_samples_per_class: 10
+  threshold_fbeta: 2.0
+  threshold_target_recall: 0.90
+
+hpo:
+  strategy: random
+  max_trials: 12
+  metric: macro_f1
+  search_space:
+    model.type: [random_forest, xgboost, neural_net]
+    model.random_forest.n_estimators: [200, 400, 800]
+    model.random_forest.max_depth: [null, 12, 24]
+    model.neural_net.learning_rate: [0.0003, 0.001, 0.003]
+    model.neural_net.dropout: [0.1, 0.3, 0.5]
+    training.gradient_clip_norm: [0.5, 1.0, 2.0]
+
+model:
+  type: random_forest
+  random_forest:
+    n_estimators: 400
+    max_depth: null
+    class_weight: balanced
+    min_samples_leaf: 2
+    max_features: sqrt
+    criterion: log_loss
+  xgboost:
+    n_estimators: 500
+    max_depth: 6
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+    device: cpu
+  neural_net:
+    hidden_layers: [256, 128, 64]
+    dropout: 0.3
+    learning_rate: 1.0e-3
+    weight_decay: 1.0e-5
+    batch_size: 64
+    epochs: 200
+    early_stopping_patience: 20
+    lr_scheduler_factor: 0.5
+    lr_scheduler_patience: 8
+  hybrid_tcn:
+    tcn_channels: [32, 64, 64]
+    tcn_kernel_size: 3
+    tcn_dropout: 0.2
+    feature_hidden: [128, 64]
+    fusion: concat
+    dropout: 0.3
+    learning_rate: 1.0e-3
+    weight_decay: 1.0e-5
+    batch_size: 32
+    epochs: 150
+    early_stopping_patience: 15
+    lr_scheduler_factor: 0.5
+    lr_scheduler_patience: 8
+    input_length: 1024
+
+calibration:
+  method: temperature
+  enabled: true
+  min_samples_per_class: 10
+
+parameter_estimation:
+  planet_threshold: 0.5
+  bootstrap_samples: 200
+  credible_levels: [0.68, 0.95]
+  bond_albedo: 0.0
+  mono_prior_samples: 5000
+  mono_eccentricity_prior: true
+  eccentricity_beta_alpha: 0.867
+  eccentricity_beta_beta: 3.03
+  mono_period_min_days: 0.5
+  mono_period_max_days: 3650.0
+
+inference:
+  mode: standard
+  planet_threshold: 0.5
+  generate_report: true
+  mc_dropout_samples: 10
+  abstain_probability_threshold: 0.55
+  abstain_entropy_threshold: 0.90
+
+reporting:
+  json: true
+  csv: true
+  html: true
+  pdf: true
+
+evaluation:
+  calibration_bins: 10
+  shap_samples: 100
